@@ -102,7 +102,7 @@ jobs:
         set -v
         REPO_BRANCH="23.05-SNAPSHOT"
         #REPO_BRANCH="$(curl -gs -H 'Content-Type: application/json' \
-        #   -H "Authorization: Bearer ${{ secrets.TOKEN_MGZ0227 }}" \
+        #   -H "Authorization: Bearer ${{ secrets.GH_TOKEN }}" \
         #   -X POST -d '{ "query": "query {repository(owner: \"openwrt\", name: \"openwrt\") {refs(refPrefix: \"refs/tags/\", last: 4, orderBy: {field: TAG_COMMIT_DATE, direction: ASC}) {edges {node {name}}}}}"}' https://api.github.com/graphql | jq -r '.data.repository.refs.edges[].node.name' | grep v23 | tail -n 1 | sed -e 's/v//')" || true
         echo "$REPO_BRANCH"
         if [[ ${{matrix.target}} == "x86_64" ]]; then
@@ -149,10 +149,10 @@ jobs:
           echo >> .config
           cat devices/${{matrix.target}}/.config >> .config
         fi
-        status=$(curl -H "Authorization: token ${{ env.REPO_TOKEN }}" -s "https://api.github.com/repos/mgz0227/OP-Packages/actions/runs" | jq -r '.workflow_runs[0].status')
+        status=$(curl -H "Authorization: token ${{ env.REPO_TOKEN }}" -s "https://api.github.com/repos/2018nuoyan/OP-Packages/actions/runs" | jq -r '.workflow_runs[0].status')
         while [ "$status" == "in_progress" ];do
           sleep 5
-          status=$(curl -H "Authorization: token ${{ env.REPO_TOKEN }}" -s "https://api.github.com/repos/mgz0227/OP-Packages/actions/runs" | jq -r '.workflow_runs[0].status')
+          status=$(curl -H "Authorization: token ${{ env.REPO_TOKEN }}" -s "https://api.github.com/repos/2018nuoyan/OP-Packages/actions/runs" | jq -r '.workflow_runs[0].status')
         done
         make defconfig
 
@@ -163,11 +163,11 @@ jobs:
     - name: Prepare
       run: |
         cd openwrt
-        mv -f package/feeds/miaogongzi miaogongzi.b
+        mv -f package/feeds/nuoyan nuoyan.b
         mv -f feeds/packages/lang feeds/packages/lang.b
         mv -f feeds/packages feeds/packages.b
-        mkdir package/feeds/miaogongzi
-        cp -rf miaogongzi.b/{wxbase,lib*,rapidjson,nftables,jpcre2,toml11,gn,curl,quickjspp,qt*,libtorrent*,openssl,mbedtls,ppp,cups,nftables} package/feeds/miaogongzi/ || true
+        mkdir package/feeds/nuoyan
+        cp -rf nuoyan.b/{wxbase,lib*,rapidjson,nftables,jpcre2,toml11,gn,curl,quickjspp,qt*,libtorrent*,openssl,mbedtls,ppp,cups,nftables} package/feeds/nuoyan/ || true
 
     
     - name: Compile the firmware
@@ -178,26 +178,26 @@ jobs:
           during="$(echo "${{github.event.action}}" | grep -o -E ' [0-9][0-9.]*' | sed -e 's/ //')"
           function comp(){
              echo "compile $ipk"
-             cp -rf miaogongzi.b/$ipk package/feeds/miaogongzi/
+             cp -rf nuoyan.b/$ipk package/feeds/nuoyan/
              if [[ $ipk != luci-* ]]; then
               mv -f feeds/packages.b feeds/packages
               mv feeds/packages/lang.b feeds/packages/lang
-              [ "$(grep "PKG_BUILD_DEPENDS" package/feeds/miaogongzi/$ipk/Makefile)" ] || mv feeds/packages/lang/node feeds/packages/lang/node.b
+              [ "$(grep "PKG_BUILD_DEPENDS" package/feeds/nuoyan/$ipk/Makefile)" ] || mv feeds/packages/lang/node feeds/packages/lang/node.b
              fi
              (make package/$ipk/compile -j$(($(nproc)+1)) || make package/$ipk/compile V=s 2>&1 | tee error_$ipk.log | grep -i "Error 2" || rm -rf error_$ipk.log) || true
              if [[ $ipk != luci-* ]]; then
               mv -f feeds/packages/lang feeds/packages/lang.b 2>/dev/null || true
               mv -f feeds/packages/lang.b/node.b feeds/packages/lang.b/node 2>/dev/null || true
               mv -f feeds/packages feeds/packages.b
-              rm -rf package/feeds/miaogongzi/$ipk
+              rm -rf package/feeds/nuoyan/$ipk
              fi
             }
-          for ipk in $(ls miaogongzi.b | grep -E "$fpkg"); do
+          for ipk in $(ls nuoyan.b | grep -E "$fpkg"); do
             echo $ipk
             if [[ "$fpkg" && ! "$during" ]]; then
               comp
             else
-              gitdate="$(curl -H "Authorization: token ${{ env.REPO_TOKEN }}" -s "https://api.github.com/repos/mgz0227/OP-Packages/commits?path=$ipk&per_page=1" | jq -r '.[0].commit.committer.date')" || true
+              gitdate="$(curl -H "Authorization: token ${{ env.REPO_TOKEN }}" -s "https://api.github.com/repos/2018nuoyan/OP-Packages/commits?path=$ipk&per_page=1" | jq -r '.[0].commit.committer.date')" || true
               if [[ "$gitdate" && "$gitdate" != null ]]; then
                 gitdate="$(date -d "$gitdate" +%s)"
                 now="$(date -d "$(date)" +%s)"
@@ -225,7 +225,7 @@ jobs:
       id: organize
       run: |
         mkdir packages
-        mv -f openwrt/bin/packages/*/miaogongzi/* packages || true
+        mv -f openwrt/bin/packages/*/nuoyan/* packages || true
         mv -f openwrt/.config packages/${{matrix.target}}.config || true
         # cp -Rf openwrt/bin/packages/*/packages/python3* packages/
         echo "FIRMWARE=$PWD/packages" >> $GITHUB_ENV
@@ -263,7 +263,7 @@ jobs:
       continue-on-error: true
       run: |
         echo -e "墙内加速下载 🚀:\n" >> release.txt
-        echo -e "[阿里云] (https://op.miaogongzi.cc/23.05/packages/${{matrix.target}}/ ☁)\n" >> release.txt
+        echo -e "[阿里云] (https://op.nuoyan.cc/23.05/packages/${{matrix.target}}/ ☁)\n" >> release.txt
         [ ${{ env.WETRANS }} ] && echo -e "[WeTransfer] (${{ env.WETRANS }} 🗽)\n" >> release.txt
         [ ${{ env.COWURL }} ] && echo -e "[奶牛上传] (${{ env.COWURL }} 🐮)\n" >> release.txt
         [ ${{ env.NOTICE }} ] && echo -e "${{ env.NOTICE }}" >> release.txt || true
@@ -273,7 +273,7 @@ jobs:
       continue-on-error: true
       if: env.REPO_TOKEN && env.UPLOAD_FIRMWARE_FOR_RELEASE == 'true'
       env:
-        GITHUB_TOKEN: ${{ secrets.TOKEN_MGZ0227 }}
+        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         files: |
             packages/*
@@ -300,7 +300,7 @@ jobs:
         REMOTE_HOST: ${{ secrets.SERVER_HOST }}
         REMOTE_USER: root
         REMOTE_PORT: ${{ secrets.SERVER_PORT }}
-        TARGET: "/www/wwwroot/op.miaogongzi.cc/23.05/packages/${{matrix.target}}/miaogongzi/"
+        TARGET: "/www/wwwroot/op.nuoyan.cc/23.05/packages/${{matrix.target}}/nuoyan/"
 
 
 
@@ -313,6 +313,6 @@ jobs:
         port: ${{ secrets.SERVER_PORT }}
         key: ${{ env.SSH_PRIVATE_KEY }}
         script: |
-          # cp -R /www/wwwroot/op.miaogongzi.cc/packages/keep/common/* /www/wwwroot/op.miaogongzi.cc/packages/${{matrix.target}}/
-          # cp -R /www/wwwroot/op.miaogongzi.cc/packages/keep/${{matrix.target}}/* /www/wwwroot/op.miaogongzi.cc/packages/${{matrix.target}}/
+          # cp -R /www/wwwroot/op.nuoyan.cc/packages/keep/common/* /www/wwwroot/op.nuoyan.cc/packages/${{matrix.target}}/
+          # cp -R /www/wwwroot/op.nuoyan.cc/packages/keep/${{matrix.target}}/* /www/wwwroot/op.nuoyan.cc/packages/${{matrix.target}}/
           bash opkg ${{matrix.target}} &
